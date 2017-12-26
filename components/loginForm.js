@@ -9,20 +9,65 @@ import firebase from 'firebase';
 import Card from './common/card';
 import Button from './common/button';
 import CardSection from './common/cardSection';
-import { Input } from './common';
+import { Input, Spinner } from './common';
+
+const styles = {
+    errorTextStyle: {
+        fontSize: 20,
+        alignSelf: "center",
+        color: "red"
+    }
+}
 
 export default class LoginForm extends Component {
 
 state = {
     email: "",
-    password: ""
+    password: "",
+    error: "",
+    loading: false
 }
 
 onButtonPress() {
 
+    this.setState({error: "", loading: true});
+
     const {email, password} = this.state
 
-    firebase.auth.signInWithEmailAndPassword(email, password);
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(this.onLoginSuccess.bind(this))
+        .catch((err) => {
+            if(err.code == "auth/user-not-found") {
+                firebase.auth().createUserWithEmailAndPassword(email, password)
+                    .then(this.onLoginSuccess.bind(this))
+                    .catch((error) => {
+                        this.setState({error: error.message, loading: false});
+                });
+            } else {
+                this.setState({error: err.message, loading: false});                
+            }
+        });
+}
+
+onLoginSuccess() {
+    this.setState({
+        email: '',
+        password: '',
+        loading: false,
+        error: ''
+    });
+}
+
+renderButton() {
+    if(this.state.loading) {
+        return (<Spinner size={'small'} />);
+    } else {
+        return(
+            <Button onPress={this.onButtonPress.bind(this)}>
+                Login
+            </Button>
+        );
+    }
 }
 
   render() {
@@ -46,10 +91,12 @@ onButtonPress() {
                 />
             </CardSection>
 
+            <Text style={styles.errorTextStyle} >
+                {this.state.error}
+            </Text>
+
             <CardSection>
-                <Button onPress={this.onButtonPress.bind(this)}>
-                    Login
-                </Button>
+                {this.renderButton()}
             </CardSection>            
         </Card>
     );
